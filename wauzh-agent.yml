@@ -1,0 +1,54 @@
+---
+- hosts: wazuh_agents
+  become: yes
+  tasks:
+    - name: Wazuh GPG key 삽입
+      rpm_key:
+        state: present
+        key: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+
+    - name: Wazuh agent 다운로드 - Ubuntu용
+      block:
+        - name: Wazuh agent 다운로드
+          get_url:
+            url: https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.6.0-1_amd64.deb
+            dest: /tmp/wazuh-agent_4.6.0-1_amd64.deb
+
+        - name: Wazuh agent Ubuntu용 설치
+          apt:
+            deb: /tmp/wazuh-agent_4.6.0-1_amd64.deb
+      when: ansible_os_family == "Debian"
+
+    - name: Wazuh agent 다운로드  - CentOS or RockyOS
+      block:
+        - name: Wazuh agent 다운로드
+          get_url:
+            url: https://packages.wazuh.com/4.x/yum/wazuh-agent-4.6.0-1.x86_64.rpm
+            dest: /tmp/wazuh-agent-4.6.0-1.x86_64.rpm
+
+        - name: Wazuh agent 설치 (CentOS or RockyOS)
+          yum:
+            name: /tmp/wazuh-agent-4.6.0-1.x86_64.rpm
+            state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Manager IP 설정에 기입
+      lineinfile:
+        path: /var/ossec/etc/ossec.conf
+        regexp: '<address>MANAGER_IP</address>'
+        line: "<address>{{ hostvars[inventory_hostname]['wazuh_server'] }}</address>"
+
+    - name: daemon 리로드
+      systemd:
+        daemon_reload: yes
+
+    - name: Wazuh agent 자동 실행
+      systemd:
+        name: wazuh-agent
+        enabled: yes
+
+    - name: Wazuh agent 실행
+      systemd:
+        name: wazuh-agent
+        state: started
+

@@ -1,0 +1,42 @@
+- hosts: wazuh_server
+
+- name:  APT 업데이트
+  hosts: wazuh_server
+  become: true
+  tasks:
+    - name: apt 캐쉬 업데이트
+      apt:
+        update_cache: yes
+
+    - name: necessary 패키지 설치
+      apt:
+        name:
+          - vim
+          - curl
+          - apt-transport-https
+          - unzip
+          - wget
+          - libcap2-bin
+          - software-properties-common
+          - lsb-release
+          - gnupg2
+        state: present
+
+    - name: Wazuh 설치 파일 다운로드
+      get_url:
+        url: https://packages.wazuh.com/4.6/wazuh-install.sh
+        dest: /tmp/wazuh-install.sh
+
+    - name: Remove lock files if error occurs 해결
+      shell: |
+        rm /var/lib/apt/lists/lock
+        rm /var/cache/apt/archives/lock
+        rm /var/lib/dpkg/lock*
+        dpkg --configure -a
+        apt update
+ 
+    - name: Wazuh Manager 설치
+      shell: |
+        cat /tmp/wazuh-install.sh
+        sudo bash /tmp/wazuh-install.sh -a -o
+
